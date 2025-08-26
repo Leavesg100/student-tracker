@@ -8,7 +8,7 @@ st.title("Student Behaviour Tracker")
 # Required columns
 required_columns = [
     "Student", "Year Group", "Date", "Behaviour", "Home Life", "Eating Habits",
-    "Disabilities", "Interventions", "Safeguarding", "Social", "Comments"
+    "Disabilities", "Interventions", "Safeguarding", "Social", "Comments", "Intervention Details"
 ]
 
 # Upload CSV
@@ -42,7 +42,8 @@ else:
             "Interventions": 3,
             "Safeguarding": 8,
             "Social": 4,
-            "Comments": "Jordan has been quiet and disengaged. Referred to mentoring but hasn’t attended yet."
+            "Comments": "Jordan has been quiet and disengaged. Referred to mentoring but hasn’t attended yet.",
+            "Intervention Details": "Mentoring referral made; awaiting first session."
         }
         st.session_state.data = pd.concat([st.session_state.data, pd.DataFrame([simulated_entry])], ignore_index=True)
 
@@ -87,6 +88,7 @@ with tab1:
         safeguarding = st.slider("Safeguarding Issues", 1, 10, 5)
         social = st.slider("Social", 1, 10, 5)
         comments = st.text_area("Comments")
+        intervention_details = st.text_area("Describe Current Interventions")
         submitted = st.form_submit_button("Submit Entry")
 
         if submitted:
@@ -101,7 +103,8 @@ with tab1:
                 "Interventions": intervention,
                 "Safeguarding": safeguarding,
                 "Social": social,
-                "Comments": comments
+                "Comments": comments,
+                "Intervention Details": intervention_details
             }
             st.session_state.data = pd.concat([st.session_state.data, pd.DataFrame([new_row])], ignore_index=True)
             st.success("Entry added successfully.")
@@ -110,7 +113,7 @@ with tab1:
 with tab2:
     st.header("Student Overview")
     student_list = st.session_state.data["Student"].unique()
-    selected_student = st.selectbox("Select Student", student_list)
+    selected_student = st.selectbox("Select Student", student_list, key="overview_student")
     student_data = st.session_state.data[st.session_state.data["Student"] == selected_student]
 
     if not student_data.empty:
@@ -151,7 +154,9 @@ with tab3:
 # Tab 4: Interventions
 with tab4:
     st.header("Intervention Log")
-    st.dataframe(st.session_state.data[["Student", "Year Group", "Date", "Interventions", "Comments"]])
+    st.dataframe(st.session_state.data[[
+        "Student", "Year Group", "Date", "Interventions", "Intervention Details", "Comments"
+    ]])
 
 # Tab 5: Comments
 with tab5:
@@ -161,7 +166,7 @@ with tab5:
 # Tab 6: Summary
 with tab6:
     st.header("Student Summary")
-    student = st.selectbox("Select Student for Summary", st.session_state.data["Student"].unique())
+    student = st.selectbox("Select Student for Summary", st.session_state.data["Student"].unique(), key="summary_student")
     st.dataframe(st.session_state.data[st.session_state.data["Student"] == student])
 
 # Tab 7: Search
@@ -205,13 +210,31 @@ with tab8:
     | 40–70             | Stable        | No immediate concern; continue observation |
     """)
 
-    st.subheader("Download Behaviour Data")
+    if not st.session_state.data.empty:
+        # Download All Student Data
+        st.subheader("Download All Student Data")
+        csv = st.session_state.data.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="Download CSV",
+            data=csv,
+            file_name='student_behaviour_data.csv',
+            mime='text/csv'
+        )
 
-    all_csv = st.session_state.data.to_csv(index=False).encode("utf-8")
-    st.download_button("Download All Student Data", all_csv, "all_student_data.csv", "text/csv")
+        # Download Individual Student Data
+        st.subheader("Download Individual Student Data")
+        student_names = sorted(st.session_state.data["Student"].dropna().unique())
+        selected_student = st.selectbox("Select Student for Export", student_names, key="download_student")
 
-    selected_student = st.selectbox("Student for Individual Export", st.session_state.data["Student"].unique(), key="export_student")
-    student_data = st.session_state.data[st.session_state.data["Student"] == selected_student]
-    if not student_data.empty:
-        student_csv = student
-        
+        student_df = st.session_state.data[st.session_state.data["Student"] == selected_student]
+        student_csv = student_df.to_csv(index=False).encode("utf-8")
+        filename = f"{selected_student.replace(' ', '_').lower()}_data.csv"
+
+        st.download_button(
+            label=f"Download {selected_student}'s Data",
+            data=student_csv,
+            file_name=filename,
+            mime="text/csv"
+        )
+    else:
+        st.info("No data available to download.")

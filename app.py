@@ -46,7 +46,25 @@ else:
         }
         st.session_state.data = pd.concat([st.session_state.data, pd.DataFrame([simulated_entry])], ignore_index=True)
 
+# --- Scoring logic ---
+score_fields = [
+    "Behaviour", "Home Life", "Eating Habits",
+    "Disabilities", "Interventions", "Safeguarding", "Social"
+]
+
 data = st.session_state.data
+data["Total Score"] = data[score_fields].sum(axis=1)
+
+def categorize_risk(score):
+    if score >= 40:
+        return "Stable"
+    elif score >= 25:
+        return "Monitor"
+    else:
+        return "High Risk"
+
+data["Risk Category"] = data["Total Score"].apply(categorize_risk)
+st.session_state.data = data
 
 # Tabs
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
@@ -96,20 +114,9 @@ with tab2:
     student_data = st.session_state.data[st.session_state.data["Student"] == selected_student]
 
     if not student_data.empty:
-        student_data["Total Score"] = student_data[[
-            "Behaviour", "Home Life", "Eating Habits", "Disabilities",
-            "Interventions", "Safeguarding", "Social"
-        ]].sum(axis=1)
-
         latest = student_data.sort_values("Date", ascending=False).iloc[0]
         avg_score = student_data["Total Score"].mean()
-
-        if avg_score < 25:
-            status = "High Risk"
-        elif avg_score < 40:
-            status = "Monitor"
-        else:
-            status = "Stable"
+        status = categorize_risk(avg_score)
 
         st.metric("Latest Behaviour Score", latest["Total Score"])
         st.metric("Average Behaviour Score", round(avg_score, 1))
@@ -127,10 +134,6 @@ with tab3:
         if students:
             filtered = st.session_state.data[st.session_state.data["Student"].isin(students)].copy()
             filtered["Date"] = pd.to_datetime(filtered["Date"], errors="coerce")
-            filtered["Total Score"] = filtered[[
-                "Behaviour", "Home Life", "Eating Habits", "Disabilities",
-                "Interventions", "Safeguarding", "Social"
-            ]].sum(axis=1)
 
             chart_data = filtered.pivot_table(
                 index=["Date", "Year Group"],
@@ -210,5 +213,5 @@ with tab8:
     selected_student = st.selectbox("Student for Individual Export", st.session_state.data["Student"].unique(), key="export_student")
     student_data = st.session_state.data[st.session_state.data["Student"] == selected_student]
     if not student_data.empty:
-        student_csv = student_data.to_csv(index=False).encode("utf-8")
-        st.download_button("Download Student Data", student_csv, f"{selected_student}_student_data.csv", "text/csv")                
+        student_csv = student
+        
